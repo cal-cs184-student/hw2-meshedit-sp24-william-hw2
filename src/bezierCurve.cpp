@@ -24,6 +24,7 @@ namespace CGL {
 
   }
 
+
   void BezierCurve::render()
   {
     // Set up color and size
@@ -120,6 +121,7 @@ namespace CGL {
 
     glFlush();
   }
+
 
   void BezierCurve::drawCurve()
   {
