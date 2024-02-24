@@ -158,12 +158,57 @@ namespace CGL
     return weighted_sum.unit();
   }
 
-  EdgeIter HalfedgeMesh::flipEdge( EdgeIter e0 )
+  EdgeIter HalfedgeMesh::flipEdge(EdgeIter e0)
   {
-    // TODO Part 4.
-    // This method should flip the given edge and return an iterator to the flipped edge.
-    return EdgeIter();
+      // TODO Part 4.
+      // This method should flip the given edge and return an iterator to the flipped edge.
+
+      HalfedgeIter h0 = e0->halfedge();
+      HalfedgeIter h1 = h0->twin();
+      HalfedgeIter h2 = h0->next();
+      HalfedgeIter h3 = h2->next();
+      HalfedgeIter h4 = h1->next();
+      HalfedgeIter h5 = h4->next();
+
+      // Early exit if the edge cannot be flipped
+      if (h0->isBoundary() || h1->isBoundary()) {
+          return e0;
+      }
+
+      VertexIter v0 = h0->vertex();
+      VertexIter v1 = h1->vertex();
+      VertexIter v2 = h3->vertex();
+      VertexIter v3 = h5->vertex();
+
+      FaceIter f0 = h0->face();
+      FaceIter f1 = h1->face();
+
+      // Reassign half-edge's vertex and face pointers
+      h0->vertex() = v3;
+      h1->vertex() = v2;
+
+      // Update the next pointers to reroute the half-edge cycles around the flipped edge
+      h0->next() = h3;
+      h3->next() = h4;
+      h4->next() = h0;
+
+      h1->next() = h5;
+      h5->next() = h2;
+      h2->next() = h1;
+
+      // Update vertex's half-edge pointers
+      v0->halfedge() = h2;
+      v1->halfedge() = h4;
+      v2->halfedge() = h1; // Point to one of the half-edges emanating from v2
+      v3->halfedge() = h0; // Point to one of the half-edges emanating from v3
+
+      // Update face's half-edge pointers
+      f0->halfedge() = h0;
+      f1->halfedge() = h1;
+
+      return e0; // The edge has now been flipped
   }
+
 
   VertexIter HalfedgeMesh::splitEdge( EdgeIter e0 )
   {
