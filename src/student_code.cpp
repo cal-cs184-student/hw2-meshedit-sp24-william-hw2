@@ -40,7 +40,15 @@ namespace CGL
   std::vector<Vector3D> BezierPatch::evaluateStep(std::vector<Vector3D> const &points, double t) const
   {
     // TODO Part 2.
-    return std::vector<Vector3D>();
+    std::vector<Vector3D> nextPoints;
+    for (size_t i = 0; i < points.size() - 1; i++) {
+        Vector3D p1 = points[i];
+        Vector3D p2 = points[i + 1];
+        Vector3D intermediatePoint = p1 * (1 - t) + p2 * t;
+        nextPoints.push_back(intermediatePoint);
+    }
+    return nextPoints;
+    //return std::vector<Vector3D>();
   }
 
   /**
@@ -53,7 +61,16 @@ namespace CGL
   Vector3D BezierPatch::evaluate1D(std::vector<Vector3D> const &points, double t) const
   {
     // TODO Part 2.
-    return Vector3D();
+   
+    //This array stores the intermediate points 
+    std::vector<Vector3D> nextPoints = points;
+
+    //This loops continues to run eval steps until we are left with a single point
+    while (nextPoints.size() > 1) {
+        nextPoints = evaluateStep(nextPoints, t);
+    }
+
+    return nextPoints.front();
   }
 
   /**
@@ -66,7 +83,25 @@ namespace CGL
   Vector3D BezierPatch::evaluate(double u, double v) const 
   {  
     // TODO Part 2.
-    return Vector3D();
+    
+
+
+
+    //Declare an empty array of 3D vectors to accumulate the column points
+    std::vector<Vector3D> columnPoints;
+
+    //loop over each of the rows in the grid and run evaluate1D on the row with parameter u as the second argument
+    for (const auto& row : controlPoints) {
+        // Evaluate the row at u to get a point on the Bezier curve defined by this row
+        Vector3D pointOnRow = evaluate1D(row, u);
+        columnPoints.push_back(pointOnRow);
+    }
+
+    //return the result of calling evaluate1D on the resulting column points with v as the second argument.
+    Vector3D finalPoint = evaluate1D(columnPoints, v);
+
+    return finalPoint;
+
   }
 
   Vector3D Vertex::normal( void ) const
