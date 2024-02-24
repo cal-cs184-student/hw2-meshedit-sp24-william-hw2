@@ -110,7 +110,52 @@ namespace CGL
     // Returns an approximate unit normal at this vertex, computed by
     // taking the area-weighted average of the normals of neighboring
     // triangles, then normalizing.
-    return Vector3D();
+
+    //Credit: I went back and forth with chatGPT on this function, and also used the code from the 184 website primer to start with. 
+
+
+    //Declare an empty array of 3D vectors to represent the normals of each face
+    std::vector<Vector3D> normals;
+    //Declare an empty array of scalars to represent the areas of each face
+    std::vector<float> areas;
+
+
+    //Iterate over each face associated with the vertex
+    HalfedgeCIter h = this->halfedge(); // get the first half-edge of the vertex
+    do {
+        if (!h->face()->isBoundary()) { // Make sure the face is not a boundary face
+            FaceCIter f = h->face(); //get the face of the current half-edge 
+
+            // getting the verticies of this trinagle
+            Vector3D p0 = h->vertex()->position;
+            Vector3D p1 = h->next()->vertex()->position;
+            Vector3D p2 = h->next()->next()->vertex()->position;
+
+            //calculate the normal using the cross product
+            Vector3D normal = cross(p1 - p0, p2 - p0);
+            normals.push_back(normal); // Store the normal
+
+            // Calculate the area as half the magnitude of the cross product
+            float area = 0.5f * normal.norm();
+            areas.push_back(area); // Store the area
+        }
+
+        h = h->twin()->next();;               // move to the next half-edge around the vertex
+    } while (h != this->halfedge());    // keep going until we are back where we were
+
+    Vector3D weighted_sum; 
+    weighted_sum.x = 0; 
+    weighted_sum.y = 0; 
+    weighted_sum.z = 0; 
+
+    for (int i = 0; i < areas.size(); ++i) {
+        weighted_sum += normals[i] * areas[i];
+    }
+    
+    Vector3D normalized_weighted_sum = weighted_sum.unit();
+    //cout << normalized_weighted_sum << endl;
+
+    return weighted_sum.unit();
   }
 
   EdgeIter HalfedgeMesh::flipEdge( EdgeIter e0 )
