@@ -215,7 +215,81 @@ namespace CGL
     // TODO Part 5.
     // This method should split the given edge and return an iterator to the newly inserted vertex.
     // The halfedge of this vertex should point along the edge that was split, rather than the new edges.
-    return VertexIter();
+      // Check if the edge is a boundary edge and should not be split
+      HalfedgeIter h0 = e0->halfedge();
+      if (h0->isBoundary() || h0->twin()->isBoundary()) {
+          return VertexIter();
+      }
+
+      // Original halfedges, vertices, and faces around the edge
+      HalfedgeIter h1 = h0->twin();
+      HalfedgeIter h2 = h0->next();
+      HalfedgeIter h3 = h2->next();
+      HalfedgeIter h4 = h1->next();
+      HalfedgeIter h5 = h4->next();
+
+      VertexIter v0 = h0->vertex();
+      VertexIter v1 = h1->vertex();
+      VertexIter v2 = h3->vertex();
+      VertexIter v3 = h5->vertex();
+
+      FaceIter f0 = h0->face();
+      FaceIter f1 = h1->face();
+
+      // New geometric elements
+      VertexIter v4 = newVertex();
+      EdgeIter e1 = newEdge(), e2 = newEdge(), e3 = newEdge();
+      HalfedgeIter h6 = newHalfedge(), h7 = newHalfedge(); // For e1
+      HalfedgeIter h8 = newHalfedge(), h9 = newHalfedge(); // For e2
+      HalfedgeIter h10 = newHalfedge(), h11 = newHalfedge(); // For e3
+      FaceIter f2 = newFace(), f3 = newFace();
+
+      // Set the position of the new vertex at the midpoint of the original edge
+      v4->position = (v0->position + v1->position) / 2.0;
+
+      // Save outer edges before modifications: 
+      HalfedgeIter h2_outer = h2->twin();
+      HalfedgeIter h3_outer = h3->twin();
+      HalfedgeIter h4_outer = h4->twin();
+      HalfedgeIter h5_outer = h5->twin();
+
+      // Reassign existing halfedges to new faces and vertices
+      h0->setNeighbors(h6, h1, v0, e0, f0);
+      h1->setNeighbors(h4, h0, v4, e0, f1);
+      h2->setNeighbors(h7, h2_outer, v2, h2->edge(), f2);
+      h3->setNeighbors(h0, h3_outer, v2, h3->edge(), f0);
+      h4->setNeighbors(h8, h4_outer, v0, h4->edge(), f1);
+      h5->setNeighbors(h10, h5_outer, v3, h5->edge(), f3);
+
+      // Setup new halfedges
+      h6->setNeighbors(h3, h7, v4, e1, f0);
+      h7->setNeighbors(h11, h6, v2, e1, f2);
+      h8->setNeighbors(h1, h9, v3, e2, f1);
+      h9->setNeighbors(h5, h8, v4, e2, f3);
+      h10->setNeighbors(h9, h11, v1, e3, f3);
+      h11->setNeighbors(h2, h10, v4, e3, f2);
+
+      // Assign new edges to halfedges
+      e1->halfedge() = h7;
+      e2->halfedge() = h9;
+      e3->halfedge() = h11;
+
+      // Update faces to point to one of their halfedges
+      f0->halfedge() = h3;
+      f1->halfedge() = h1;
+      f2->halfedge() = h2;
+      f3->halfedge() = h9;
+
+      // Update the new vertex to point to one of its outgoing halfedges
+      v4->halfedge() = h6;
+
+
+      check_for(h11);
+      check_for(h2);
+      check_for(h7);
+
+
+      return v4;
   }
 
 
