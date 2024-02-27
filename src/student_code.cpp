@@ -382,7 +382,7 @@ namespace CGL
 
           e->newPosition = 3.0f / 8.0f * (A + B) + 1.0f / 8.0f * (C + D);
 
-          e->isNew = 0; // Mark edge as original
+          e->isNew = 0; // Mark edge as original 
       }
 
       // 3. Split every edge in the mesh, in any order. For future reference, we're also going to store some
