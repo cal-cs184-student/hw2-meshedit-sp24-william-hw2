@@ -257,6 +257,11 @@ namespace CGL
       HalfedgeIter h4_outer = h4->twin();
       HalfedgeIter h5_outer = h5->twin();
 
+      EdgeIter h2_outer_e = h2->edge();
+      EdgeIter h3_outer_e = h3->edge();
+      EdgeIter h4_outer_e = h4->edge();
+      EdgeIter h5_outer_e = h5->edge();
+
       // Reassign existing halfedges to new faces and vertices
       h0->setNeighbors(h6, h1, v0, e0, f0);
       h1->setNeighbors(h4, h0, v4, e0, f1);
@@ -274,12 +279,19 @@ namespace CGL
       h10->setNeighbors(h9, h11, v1, e3, f3);
       h11->setNeighbors(h2, h10, v4, e3, f2);
 
+      //ensure consistency of outer halfedges
+      h2_outer->setNeighbors(h2_outer->next(), h2, v2, h2_outer_e, h2_outer->face());
+      h3_outer->setNeighbors(h3_outer->next(), h3, v0, h3_outer_e, h3_outer->face());
+      h4_outer->setNeighbors(h4_outer->next(), h4, v3, h4_outer_e, h4_outer->face());
+      h5_outer->setNeighbors(h5_outer->next(), h5, v1, h5_outer_e, h5_outer->face());
+
+
       // Assign new edges to halfedges
       e0->halfedge() = h0;
       e1->halfedge() = h7;
       e2->halfedge() = h9;
       e3->halfedge() = h11;
-      
+
 
       // Update faces to point to one of their halfedges
       f0->halfedge() = h3;
@@ -290,8 +302,17 @@ namespace CGL
       // Update the new vertex to point to one of its outgoing halfedges
       v4->halfedge() = h8;
 
+      //Set the isNew values
 
+      e0->isNew = 0; 
+      e3->isNew = 0; 
+      e1->isNew = 1;
+      e2->isNew = 1;
+
+      v4->isNew = 1;
       return v4;
+      
+
   }
 
 
@@ -301,21 +322,90 @@ namespace CGL
     // TODO Part 6.
     // This routine should increase the number of triangles in the mesh using Loop subdivision.
     // One possible solution is to break up the method as listed below.
+    //Citaton: I used chatGPT pretty heavily for this function, but it took many back and forths to with it.
 
     // 1. Compute new positions for all the vertices in the input mesh, using the Loop subdivision rule,
     // and store them in Vertex::newPosition. At this point, we also want to mark each vertex as being
     // a vertex of the original mesh.
-    
-    // 2. Compute the updated vertex positions associated with edges, and store it in Edge::newPosition.
-    
-    // 3. Split every edge in the mesh, in any order. For future reference, we're also going to store some
-    // information about which subdivide edges come from splitting an edge in the original mesh, and which edges
-    // are new, by setting the flat Edge::isNew. Note that in this loop, we only want to iterate over edges of
-    // the original mesh---otherwise, we'll end up splitting edges that we just split (and the loop will never end!)
-    
-    // 4. Flip any new edge that connects an old and new vertex.
+      for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
+          v->isNew = 0; // Mark vertex as original
 
-    // 5. Copy the new vertex positions into final Vertex::position.
+
+          // Compute new position for existing vertex using Loop subdivision rule
+          float n = static_cast<float>(v->degree());
+          float u = (n == 3) ? 3.0f / 16.0f : 3.0f / (8.0f * n);
+          Vector3D original_position = v->position;
+          Vector3D sum_neighbor_position(0, 0, 0);
+
+          HalfedgeIter h = v->halfedge();
+          do {
+              sum_neighbor_position += h->twin()->vertex()->position;
+              h = h->twin()->next();
+          } while (h != v->halfedge());
+
+          v->newPosition = (1 - n * u) * original_position + u * sum_neighbor_position;
+
+      }
+
+      // 2. Compute the updated vertex positions associated with edges, and store it in Edge::newPosition.
+      for (EdgeIter e = mesh.edgesBegin(); e != mesh.edgesEnd(); e++) {
+
+          Vector3D A = e->halfedge()->vertex()->position;
+          Vector3D B = e->halfedge()->twin()->vertex()->position;
+          Vector3D C = e->halfedge()->next()->next()->vertex()->position;
+          Vector3D D = e->halfedge()->twin()->next()->next()->vertex()->position;
+
+          e->newPosition = 3.0f / 8.0f * (A + B) + 1.0f / 8.0f * (C + D);
+
+          e->isNew = 0; // Mark edge as original
+      }
+      std::cout << "Step: 2 complete" << std::endl;
+
+      // 3. Split every edge in the mesh, in any order. For future reference, we're also going to store some
+      // information about which subdivide edges come from splitting an edge in the original mesh, and which edges
+      // are new, by setting the flat Edge::isNew. Note that in this loop, we only want to iterate over edges of
+      // the original mesh---otherwise, we'll end up splitting edges that we just split (and the loop will never end!)
+
+      std::vector<EdgeIter> originalEdges;
+      for (EdgeIter e = mesh.edgesBegin(); e != mesh.edgesEnd(); e++) {
+          originalEdges.push_back(e);
+      }
+      for (EdgeIter e : originalEdges) {
+          VertexIter newV = mesh.splitEdge(e);
+          //newV->position = e->newPosition;
+          newV->isNew = true;
+
+          // Update isNew flag for edges resulting from the split
+          HalfedgeIter h = newV->halfedge();
+          do {
+              h->edge()->isNew = true;
+              h = h->twin()->next();
+          } while (h != newV->halfedge());
+      }
+      std::cout << "Step: 3 complete" << std::endl;
+      
+      // 4. Flip any new edge that connects an old and new vertex.
+      for (EdgeIter e = mesh.edgesBegin(); e != mesh.edgesEnd(); e++) {
+          bool vertex_A_new = e->halfedge()->vertex()->isNew;
+          bool vertex_B_new = e->halfedge()->twin()->vertex()->isNew;
+          if (e->isNew && ((vertex_A_new && !vertex_B_new) ||
+              (!vertex_A_new && vertex_B_new))) {
+              mesh.flipEdge(e);
+              e->isNew = false;
+          }
+      }
+      std::cout << "Step: 4 complete" << std::endl;
+      
+
+      // 5. Copy the new vertex positions into final Vertex::position.
+      for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
+          if (true) { // Only update original vertices: Condition to insert for debugging purposes: !v->isNew
+              v->position = v->newPosition;
+              v->isNew = 0;
+          }
+      }
+      std::cout << "Step: 5 complete" << std::endl;
 
   }
 }
+
