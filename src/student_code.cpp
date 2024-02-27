@@ -170,6 +170,18 @@ namespace CGL
       HalfedgeIter h4 = h1->next();
       HalfedgeIter h5 = h4->next();
 
+      //outer 
+      HalfedgeIter h6 = h2->twin();
+      HalfedgeIter h7 = h3->twin();
+      HalfedgeIter h8 = h4->twin();
+      HalfedgeIter h9 = h5->twin();
+      
+      EdgeIter e1 = h6->edge();
+      EdgeIter e2 = h7->edge();
+      EdgeIter e3 = h8->edge();
+      EdgeIter e4 = h9->edge();
+
+
       // Early exit if the edge cannot be flipped
       if (h0->isBoundary() || h1->isBoundary()) {
           return e0;
@@ -183,28 +195,39 @@ namespace CGL
       FaceIter f0 = h0->face();
       FaceIter f1 = h1->face();
 
-      // Reassign half-edge's vertex and face pointers
-      h0->vertex() = v3;
-      h1->vertex() = v2;
 
-      // Update the next pointers to reroute the half-edge cycles around the flipped edge
-      h0->next() = h3;
-      h3->next() = h4;
-      h4->next() = h0;
 
-      h1->next() = h5;
-      h5->next() = h2;
-      h2->next() = h1;
+      // Reassign half-edge's
+      h0->setNeighbors(h3, h1, v3, e0, f0);
+      h3->setNeighbors(h4, h7, v2, e2, f0);
+      h4->setNeighbors(h0, h8, v0, e3, f0);
+
+      h1-> setNeighbors(h5, h0, v2, e0, f1);
+      h5-> setNeighbors(h2, h9, v3, e4, f1);
+      h2->setNeighbors(h1, h6, v1, e1, f1);
+
+      h6->setNeighbors(h6->next(), h2, v2, e1, h6->face());
+      h7->setNeighbors(h7->next(), h3, v0, e2, h7->face());
+      h8->setNeighbors(h8->next(), h4, v3, e3, h8->face());
+      h9->setNeighbors(h9->next(), h5, v1, e4, h9->face());
+
 
       // Update vertex's half-edge pointers
-      v0->halfedge() = h2;
-      v1->halfedge() = h4;
-      v2->halfedge() = h1; // Point to one of the half-edges emanating from v2
-      v3->halfedge() = h0; // Point to one of the half-edges emanating from v3
+      v0->halfedge() = h4;
+      v1->halfedge() = h2;
+      v2->halfedge() = h3; // Point to one of the half-edges emanating from v2
+      v3->halfedge() = h5; // Point to one of the half-edges emanating from v3
 
       // Update face's half-edge pointers
       f0->halfedge() = h0;
       f1->halfedge() = h1;
+
+      //update edge
+      e0->halfedge() = h0;
+      e1->halfedge() = h2;
+      e2->halfedge() = h3;
+      e3->halfedge() = h4;
+      e4->halfedge() = h5;
 
       return e0; // The edge has now been flipped
   }
@@ -324,6 +347,8 @@ namespace CGL
     // One possible solution is to break up the method as listed below.
     //Citaton: I used chatGPT pretty heavily for this function, but it took many back and forths to with it.
 
+    //Citaton: I used chatGPT pretty heavily for this function, but it took many back and forths to with it.
+
     // 1. Compute new positions for all the vertices in the input mesh, using the Loop subdivision rule,
     // and store them in Vertex::newPosition. At this point, we also want to mark each vertex as being
     // a vertex of the original mesh.
@@ -359,7 +384,6 @@ namespace CGL
 
           e->isNew = 0; // Mark edge as original
       }
-      std::cout << "Step: 2 complete" << std::endl;
 
       // 3. Split every edge in the mesh, in any order. For future reference, we're also going to store some
       // information about which subdivide edges come from splitting an edge in the original mesh, and which edges
@@ -370,20 +394,16 @@ namespace CGL
       for (EdgeIter e = mesh.edgesBegin(); e != mesh.edgesEnd(); e++) {
           originalEdges.push_back(e);
       }
-      for (EdgeIter e : originalEdges) {
-          VertexIter newV = mesh.splitEdge(e);
-          //newV->position = e->newPosition;
-          newV->isNew = true;
 
-          // Update isNew flag for edges resulting from the split
-          HalfedgeIter h = newV->halfedge();
-          do {
-              h->edge()->isNew = true;
-              h = h->twin()->next();
-          } while (h != newV->halfedge());
+      for (EdgeIter e : originalEdges) {
+          //first make sure we have an old edge 
+          if (!(e->halfedge()->vertex()->isNew || e->halfedge()->twin()->vertex()->isNew)) {
+              VertexIter newV = mesh.splitEdge(e);
+              newV->newPosition = e->newPosition;
+          }
       }
-      std::cout << "Step: 3 complete" << std::endl;
-      
+
+
       // 4. Flip any new edge that connects an old and new vertex.
       for (EdgeIter e = mesh.edgesBegin(); e != mesh.edgesEnd(); e++) {
           bool vertex_A_new = e->halfedge()->vertex()->isNew;
@@ -394,8 +414,7 @@ namespace CGL
               e->isNew = false;
           }
       }
-      std::cout << "Step: 4 complete" << std::endl;
-      
+
 
       // 5. Copy the new vertex positions into final Vertex::position.
       for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
@@ -404,7 +423,6 @@ namespace CGL
               v->isNew = 0;
           }
       }
-      std::cout << "Step: 5 complete" << std::endl;
 
   }
 }
