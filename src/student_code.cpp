@@ -215,6 +215,8 @@ namespace CGL
     // TODO Part 5.
     // This method should split the given edge and return an iterator to the newly inserted vertex.
     // The halfedge of this vertex should point along the edge that was split, rather than the new edges.
+    // 
+    // Citation: I used chatGPT to help me with debugging this (especially with checking the consistency of the statements printed out by the check during the debugging process!)
       // Check if the edge is a boundary edge and should not be split
       HalfedgeIter h0 = e0->halfedge();
       if (h0->isBoundary() || h0->twin()->isBoundary()) {
@@ -227,6 +229,8 @@ namespace CGL
       HalfedgeIter h3 = h2->next();
       HalfedgeIter h4 = h1->next();
       HalfedgeIter h5 = h4->next();
+
+      EdgeIter missing_edge = h2->edge();
 
       VertexIter v0 = h0->vertex();
       VertexIter v1 = h1->vertex();
@@ -256,10 +260,11 @@ namespace CGL
       // Reassign existing halfedges to new faces and vertices
       h0->setNeighbors(h6, h1, v0, e0, f0);
       h1->setNeighbors(h4, h0, v4, e0, f1);
-      h2->setNeighbors(h7, h2_outer, v2, h2->edge(), f2);
+      h2->setNeighbors(h7, h2_outer, v1, h2->edge(), f2);
       h3->setNeighbors(h0, h3_outer, v2, h3->edge(), f0);
       h4->setNeighbors(h8, h4_outer, v0, h4->edge(), f1);
       h5->setNeighbors(h10, h5_outer, v3, h5->edge(), f3);
+
 
       // Setup new halfedges
       h6->setNeighbors(h3, h7, v4, e1, f0);
@@ -270,23 +275,20 @@ namespace CGL
       h11->setNeighbors(h2, h10, v4, e3, f2);
 
       // Assign new edges to halfedges
+      e0->halfedge() = h0;
       e1->halfedge() = h7;
       e2->halfedge() = h9;
       e3->halfedge() = h11;
+      
 
       // Update faces to point to one of their halfedges
       f0->halfedge() = h3;
       f1->halfedge() = h1;
-      f2->halfedge() = h2;
+      f2->halfedge() = h11;
       f3->halfedge() = h9;
 
       // Update the new vertex to point to one of its outgoing halfedges
-      v4->halfedge() = h6;
-
-
-      check_for(h11);
-      check_for(h2);
-      check_for(h7);
+      v4->halfedge() = h8;
 
 
       return v4;
